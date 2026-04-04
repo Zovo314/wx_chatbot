@@ -1,0 +1,13 @@
+.git
+.env
+__pycache__
+*.pyc
+data/
+venv/
+.vscode/
+.idea/
+.DS_Store
+exes/
+docs/
+*.md
+!requirements.txt

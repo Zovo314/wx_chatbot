@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ persona.name }} — 前任.skill{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-800">{{ persona.name }}</h1>
+    <p class="text-sm text-gray-500">#{{ persona.slug }}</p>
+  </div>
+  <form method="post" action="/admin/detail/{{ persona.slug }}/delete"
+    onsubmit="return confirm('确定要删除「{{ persona.name }}」吗？')">
+    <button type="submit" class="text-sm text-red-500 hover:text-red-700">删除</button>
+  </form>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+  <h2 class="font-semibold text-gray-700 mb-2">企业微信使用方式</h2>
+  <p class="text-sm text-gray-600">在企业微信中发送 <code class="bg-gray-100 px-1.5 py-0.5 rounded">#{{ persona.slug }}</code> 切换到此人格，然后直接发消息对话。</p>
+</div>
+
+<form method="post" action="/admin/detail/{{ persona.slug }}/edit" class="space-y-6">
+  <div class="bg-white rounded-lg shadow-sm border p-6">
+    <h2 class="font-semibold text-gray-700 mb-3">关系记忆（Memory）</h2>
+    <textarea name="memory" rows="15"
+      class="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ persona.memory }}</textarea>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border p-6">
+    <h2 class="font-semibold text-gray-700 mb-3">人物性格（Persona）</h2>
+    <textarea name="persona_text" rows="15"
+      class="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ persona.persona }}</textarea>
+  </div>
+
+  <div class="bg-white rounded-lg shadow-sm border p-6">
+    <h2 class="font-semibold text-gray-700 mb-3">最终 System Prompt（只读预览）</h2>
+    <pre class="bg-gray-50 border rounded-lg p-4 text-xs font-mono text-gray-600 overflow-x-auto max-h-96 overflow-y-auto">{{ persona.system_prompt }}</pre>
+  </div>
+
+  <div class="flex justify-end">
+    <button type="submit"
+      class="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700">
+      保存并重新生成 Prompt
+    </button>
+  </div>
+</form>
+{% endblock %}

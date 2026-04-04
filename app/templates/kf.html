@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}微信客服 — 前任.skill{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-800 mb-6">微信客服管理</h1>
+
+{% if error %}
+<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">{{ error }}</div>
+{% endif %}
+
+<div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
+  <h2 class="font-semibold text-gray-700 mb-3">为人格创建客服入口</h2>
+  <p class="text-sm text-gray-500 mb-4">每个人格可创建一个微信客服账号，普通微信用户通过链接即可与该人格对话。</p>
+
+  <form method="post" action="/admin/kf/create" class="flex items-end gap-4">
+    <div class="flex-1">
+      <label class="block text-sm font-medium text-gray-600 mb-1">选择人格</label>
+      <select name="slug" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+        {% for p in personas %}
+        <option value="{{ p.slug }}">{{ p.name }} (#{{ p.slug }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit"
+      class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+      创建客服账号
+    </button>
+  </form>
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border p-6">
+  <h2 class="font-semibold text-gray-700 mb-3">已创建的客服账号</h2>
+
+  {% set has_kf = [] %}
+  {% for p in personas %}
+    {% set meta = p.meta_json | default('{}') %}
+    {% if '"kf"' in meta %}
+      {% if has_kf.append(1) %}{% endif %}
+      <div class="border-b last:border-0 py-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="font-medium text-gray-800">{{ p.name }}</span>
+            <span class="text-sm text-gray-500 ml-2">#{{ p.slug }}</span>
+          </div>
+        </div>
+        <div class="mt-2 text-sm text-gray-600">
+          <p>用户可通过以下链接在微信中发起对话：</p>
+          <code class="block bg-gray-50 border rounded px-3 py-2 mt-1 text-xs break-all select-all">{{ p.meta_json }}</code>
+          <p class="text-xs text-gray-400 mt-1">在微信中打开此链接，或生成二维码扫码使用</p>
+        </div>
+      </div>
+    {% endif %}
+  {% endfor %}
+
+  {% if not has_kf %}
+  <p class="text-gray-400 text-sm">还没有创建任何客服账号</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}前任.skill{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <nav class="bg-white shadow-sm border-b">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      <a href="/admin/" class="text-lg font-semibold text-gray-800">前任.skill</a>
+      <div class="flex gap-4 text-sm">
+        <a href="/admin/" class="text-gray-600 hover:text-gray-900">人格列表</a>
+        <a href="/admin/create" class="text-gray-600 hover:text-gray-900">创建</a>
+        <a href="/admin/kf" class="text-gray-600 hover:text-gray-900">微信客服</a>
+        <a href="/admin/config" class="text-gray-600 hover:text-gray-900">AI 配置</a>
+      </div>
+    </div>
+  </nav>
+  <main class="max-w-4xl mx-auto px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

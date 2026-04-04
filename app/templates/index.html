@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}人格列表 — 前任.skill{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-800">人格列表</h1>
+  <a href="/admin/create" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">创建新人格</a>
+</div>
+
+{% if personas %}
+<div class="grid gap-4">
+  {% for p in personas %}
+  <a href="/admin/detail/{{ p.slug }}" class="block bg-white rounded-lg shadow-sm border p-5 hover:shadow-md transition">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-semibold text-gray-800">{{ p.name }}</h2>
+        <p class="text-sm text-gray-500 mt-1">#{{ p.slug }}</p>
+      </div>
+      <div class="text-xs text-gray-400">
+        {{ p.updated_at.strftime('%Y-%m-%d %H:%M') if p.updated_at else '' }}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-20 text-gray-400">
+  <p class="text-lg mb-4">还没有创建任何人格</p>
+  <a href="/admin/create" class="text-blue-600 hover:underline">创建第一个</a>
+</div>
+{% endif %}
+{% endblock %}

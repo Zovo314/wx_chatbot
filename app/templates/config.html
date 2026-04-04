@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}AI 配置 — 前任.skill{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-800 mb-6">AI 配置</h1>
+
+<form method="post" action="/admin/config" class="space-y-6">
+  <div class="bg-white rounded-lg shadow-sm border p-6 space-y-5">
+
+    <div>
+      <label class="block text-sm font-medium text-gray-600 mb-1">Provider</label>
+      <select name="provider"
+        class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        <option value="openai" {{ 'selected' if config.provider == 'openai' }}>OpenAI</option>
+        <option value="claude" {{ 'selected' if config.provider == 'claude' }}>Claude</option>
+        <option value="deepseek" {{ 'selected' if config.provider == 'deepseek' }}>DeepSeek</option>
+        <option value="other" {{ 'selected' if config.provider not in ('openai','claude','deepseek') }}>其他</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-600 mb-1">Model</label>
+      <input type="text" name="model" value="{{ config.model }}"
+        class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        placeholder="gpt-4o">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-600 mb-1">API Key</label>
+      <input type="password" name="api_key" placeholder="留空则保持不变"
+        class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+      <p class="text-xs text-gray-400 mt-1">{{ '已配置' if config.api_key else '未配置' }}</p>
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-600 mb-1">Base URL（OpenAI 兼容格式）</label>
+      <input type="text" name="base_url" value="{{ config.base_url }}"
+        class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        placeholder="https://api.openai.com/v1">
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-600 mb-1">携带历史对话轮数</label>
+      <input type="number" name="max_history" value="{{ config.max_history }}" min="1" max="100"
+        class="w-32 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+    </div>
+
+  </div>
+
+  <div class="flex justify-end">
+    <button type="submit"
+      class="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700">
+      保存配置
+    </button>
+  </div>
+</form>
+{% endblock %}
