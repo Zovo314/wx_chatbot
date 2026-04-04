@@ -1,10 +1,11 @@
-# 前任.skill
+# wx_chatbot — 微信 AI 聊天机器人
 
 **我会为了你一万次回到那个夏天。**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com)
+[![Docker](https://img.shields.io/badge/Docker-Supported-2496ED.svg)](Dockerfile)
 
 提供前任的原材料（微信聊天记录、QQ 消息、你的主观描述），AI 自动生成一个**真正像 ta 的人格**，通过微信客服或企业微信与你对话。
 
@@ -114,6 +115,35 @@ uvicorn app.main:app --reload
 3. 在 `/admin/kf` 页面绑定已有微信客服账号到人格
 4. 用户通过微信客服链接或企业微信应用发消息，AI 以该人格回复
 
+## 数据源
+
+| 来源 | 格式 | 备注 |
+|------|------|------|
+| 微信聊天记录 | WeChatMsg / 留痕 / PyWxDump 导出 | 推荐，信息最丰富 |
+| QQ 聊天记录 | txt / mht 导出 | 适合学生时代的恋情 |
+| 口述/粘贴 | 纯文本 | 你的主观记忆 |
+
+### 推荐的聊天记录导出工具
+
+以下工具为独立的开源项目，本项目不包含它们的代码，仅在解析器中适配了它们的导出格式：
+
+- **[WeChatMsg](https://github.com/LC044/WeChatMsg)** — 微信聊天记录导出（Windows）
+- **[PyWxDump](https://github.com/xaoyaoo/PyWxDump)** — 微信数据库解密导出（Windows）
+- **留痕** — 微信聊天记录导出（macOS）
+
+## 人格结构
+
+每个 AI 人格由两部分驱动：
+
+| 部分 | 内容 |
+|------|------|
+| **Relationship Memory** | 共同经历、约会地点、inside jokes、争吵模式、甜蜜瞬间、关系时间线 |
+| **Persona** | 5 层性格结构：硬规则 → 身份 → 说话风格 → 情感模式 → 关系行为 |
+
+运行逻辑：`收到消息 → Persona 判断 ta 会怎么回 → Memory 补充共同记忆 → 用 ta 的方式输出`
+
 ---
 
-MIT License © [therealXiaomanChu](https://github.com/therealXiaomanChu)
+基于 [前任.skill](https://github.com/therealXiaomanChu/ex-skill) 改造，致敬原作者 [therealXiaomanChu](https://github.com/therealXiaomanChu) 和 [同事.skill](https://github.com/titanwings/colleague-skill) 的创意。
+
+MIT License
