@@ -27,12 +27,12 @@ TOOLS_DIR = BASE_DIR / "tools"
 async def index(request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Persona).order_by(Persona.id.desc()))
     personas = result.scalars().all()
-    return templates.TemplateResponse("index.html", {"request": request, "personas": personas})
+    return templates.TemplateResponse(name="index.html", context={"request": request, "personas": personas})
 
 
 @router.get("/create", response_class=HTMLResponse)
 async def create_page(request: Request):
-    return templates.TemplateResponse("create.html", {"request": request})
+    return templates.TemplateResponse(name="create.html", context={"request": request})
 
 
 @router.post("/create")
@@ -49,7 +49,7 @@ async def create_persona(
     # 检查 slug 是否重复
     existing = await db.execute(select(Persona).where(Persona.slug == slug))
     if existing.scalar_one_or_none():
-        return templates.TemplateResponse("create.html", {
+        return templates.TemplateResponse(name="create.html", context={
             "request": request,
             "error": f"代号「{slug}」已存在",
             "slug": slug, "name": name, "basic_info": basic_info,
@@ -123,7 +123,7 @@ async def detail_page(request: Request, slug: str, db: AsyncSession = Depends(ge
     persona = result.scalar_one_or_none()
     if not persona:
         return RedirectResponse(url="/admin/")
-    return templates.TemplateResponse("detail.html", {"request": request, "persona": persona})
+    return templates.TemplateResponse(name="detail.html", context={"request": request, "persona": persona})
 
 
 @router.post("/detail/{slug}/edit")
@@ -157,7 +157,7 @@ async def delete_persona(slug: str, db: AsyncSession = Depends(get_db)):
 @router.get("/config", response_class=HTMLResponse)
 async def config_page(request: Request, db: AsyncSession = Depends(get_db)):
     config = await get_ai_config(db)
-    return templates.TemplateResponse("config.html", {"request": request, "config": config})
+    return templates.TemplateResponse(name="config.html", context={"request": request, "config": config})
 
 
 @router.post("/config")
@@ -186,7 +186,7 @@ async def kf_page(request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Persona).order_by(Persona.id.desc()))
     personas = result.scalars().all()
     kf_map = get_kf_persona_map()
-    return templates.TemplateResponse("kf.html", {
+    return templates.TemplateResponse(name="kf.html", context={
         "request": request, "personas": personas, "kf_map": kf_map,
     })
 
@@ -220,7 +220,7 @@ async def kf_create(
         result = await db.execute(select(Persona).order_by(Persona.id.desc()))
         personas = result.scalars().all()
         from app.services.kf import get_kf_persona_map
-        return templates.TemplateResponse("kf.html", {
+        return templates.TemplateResponse(name="kf.html", context={
             "request": request, "personas": personas,
             "kf_map": get_kf_persona_map(), "error": str(e),
         })
