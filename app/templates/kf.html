@@ -8,8 +8,54 @@
 {% endif %}
 
 <div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
-  <h2 class="font-semibold text-gray-700 mb-3">为人格创建客服入口</h2>
-  <p class="text-sm text-gray-500 mb-4">每个人格可创建一个微信客服账号，普通微信用户通过链接即可与该人格对话。</p>
+  <h2 class="font-semibold text-gray-700 mb-3">已有的客服账号</h2>
+
+  {% if kf_accounts %}
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="border-b text-left text-gray-500">
+        <th class="py-2">客服名称</th>
+        <th class="py-2">open_kfid</th>
+        <th class="py-2">绑定人格</th>
+        <th class="py-2">操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for kf in kf_accounts %}
+      <tr class="border-b last:border-0">
+        <td class="py-3 font-medium text-gray-800">{{ kf.name }}</td>
+        <td class="py-3 text-xs text-gray-500 font-mono">{{ kf.open_kfid }}</td>
+        <td class="py-3">
+          {% set bound_slug = kf_map.get(kf.open_kfid, '') %}
+          {% if bound_slug %}
+            <span class="text-green-600 font-medium">#{{ bound_slug }}</span>
+          {% else %}
+            <span class="text-gray-400">未绑定</span>
+          {% endif %}
+        </td>
+        <td class="py-3">
+          <form method="post" action="/admin/kf/bind" class="flex items-center gap-2">
+            <input type="hidden" name="open_kfid" value="{{ kf.open_kfid }}">
+            <select name="slug" class="border rounded px-2 py-1 text-xs">
+              {% for p in personas %}
+              <option value="{{ p.slug }}" {% if kf_map.get(kf.open_kfid) == p.slug %}selected{% endif %}>{{ p.name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">绑定</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-gray-400 text-sm">未读取到客服账号</p>
+  {% endif %}
+</div>
+
+<div class="bg-white rounded-lg shadow-sm border p-6">
+  <h2 class="font-semibold text-gray-700 mb-3">创建新客服账号</h2>
+  <p class="text-sm text-gray-500 mb-4">为人格创建新的微信客服账号（需要提供头像 media_id）。</p>
 
   <form method="post" action="/admin/kf/create" class="flex items-end gap-4">
     <div class="flex-1">
@@ -21,38 +67,9 @@
       </select>
     </div>
     <button type="submit"
-      class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+      class="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700">
       创建客服账号
     </button>
   </form>
-</div>
-
-<div class="bg-white rounded-lg shadow-sm border p-6">
-  <h2 class="font-semibold text-gray-700 mb-3">已创建的客服账号</h2>
-
-  {% set has_kf = [] %}
-  {% for p in personas %}
-    {% set meta = p.meta_json | default('{}') %}
-    {% if '"kf"' in meta %}
-      {% if has_kf.append(1) %}{% endif %}
-      <div class="border-b last:border-0 py-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <span class="font-medium text-gray-800">{{ p.name }}</span>
-            <span class="text-sm text-gray-500 ml-2">#{{ p.slug }}</span>
-          </div>
-        </div>
-        <div class="mt-2 text-sm text-gray-600">
-          <p>用户可通过以下链接在微信中发起对话：</p>
-          <code class="block bg-gray-50 border rounded px-3 py-2 mt-1 text-xs break-all select-all">{{ p.meta_json }}</code>
-          <p class="text-xs text-gray-400 mt-1">在微信中打开此链接，或生成二维码扫码使用</p>
-        </div>
-      </div>
-    {% endif %}
-  {% endfor %}
-
-  {% if not has_kf %}
-  <p class="text-gray-400 text-sm">还没有创建任何客服账号</p>
-  {% endif %}
 </div>
 {% endblock %}

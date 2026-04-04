@@ -41,6 +41,19 @@ async def get_kf_access_token() -> str:
         return data["access_token"]
 
 
+async def list_kf_accounts() -> list[dict]:
+    """获取已有的客服账号列表。"""
+    token = await get_kf_access_token()
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"https://qyapi.weixin.qq.com/cgi-bin/kf/account/list?access_token={token}",
+        )
+        data = resp.json()
+        if data.get("errcode", 0) != 0:
+            return []
+        return data.get("account_list", [])
+
+
 async def create_kf_account(name: str, media_id: str = "") -> dict:
     """创建客服账号。返回 {open_kfid, url}"""
     token = await get_kf_access_token()

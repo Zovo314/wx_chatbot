@@ -181,12 +181,16 @@ async def save_config(
 
 @router.get("/kf", response_class=HTMLResponse)
 async def kf_page(request: Request, db: AsyncSession = Depends(get_db)):
-    from app.services.kf import get_kf_persona_map
+    from app.services.kf import get_kf_persona_map, list_kf_accounts
     result = await db.execute(select(Persona).order_by(Persona.id.desc()))
     personas = result.scalars().all()
     kf_map = get_kf_persona_map()
+    try:
+        kf_accounts = await list_kf_accounts()
+    except Exception:
+        kf_accounts = []
     return templates.TemplateResponse(request, name="kf.html", context={
-        "personas": personas, "kf_map": kf_map,
+        "personas": personas, "kf_map": kf_map, "kf_accounts": kf_accounts,
     })
 
 
@@ -220,6 +224,27 @@ async def kf_create(
         personas = result.scalars().all()
         from app.services.kf import get_kf_persona_map
         return templates.TemplateResponse(request, name="kf.html", context={
-            "personas": personas,
+            "personas": personas, "kf_accounts": [],
             "kf_map": get_kf_persona_map(), "error": str(e),
         })
+
+
+@router.post("/kf/bind")
+async def kf_bind(
+    request: Request,
+    open_kfid: str = Form(...),
+    slug: str = Form(...),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.kf import bind_kf_persona
+    result = await db.execute(select(Persona).where(Persona.slug == slug))
+    persona = result.scalar_one_or_none()
+    if not persona:
+        return RedirectResponse(url="/admin/kf", status_code=303)
+
+    meta = json.loads(persona.meta_json) if persona.meta_json else {}
+    meta["kf"] = {"open_kfid": open_kfid, "link": ""}
+    persona.meta_json = json.dumps(meta, ensure_ascii=False)
+    await db.commit()
+    bind_kf_persona(open_kfid, slug)
+    return RedirectResponse(url="/admin/kf", status_code=303)
