@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI人格复刻：0代码搭建你的专属AI聊天机器人</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700;900&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #faf9f7;
+    --text: #1a1a1a;
+    --text-secondary: #555;
+    --accent: #e85d3a;
+    --accent-light: #fff0ec;
+    --accent-dark: #c94422;
+    --green: #2d9d78;
+    --green-light: #eaf7f2;
+    --blue: #3b82f6;
+    --blue-light: #eff6ff;
+    --yellow: #f59e0b;
+    --yellow-light: #fffbeb;
+    --gray-bg: #f3f2ef;
+    --gray-border: #e5e2dc;
+    --card-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.85;
+    font-size: 16px;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0 20px 60px;
+  }
+
+  /* ===== HERO ===== */
+  .hero {
+    text-align: center;
+    padding: 50px 0 40px;
+    position: relative;
+  }
+  .hero::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 4px;
+    background: var(--accent);
+    border-radius: 2px;
+    margin: 30px auto 0;
+  }
+  .hero-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 4px 16px;
+    border-radius: 20px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+  }
+  .hero h1 {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 28px;
+    font-weight: 900;
+    line-height: 1.4;
+    margin-bottom: 14px;
+    letter-spacing: -0.5px;
+  }
+  .hero h1 span {
+    background: linear-gradient(135deg, var(--accent), #f97316);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero p {
+    color: var(--text-secondary);
+    font-size: 15px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* ===== HIGHLIGHT CARDS (top) ===== */
+  .highlights {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 0 0 36px;
+  }
+  .hl-card {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 18px 16px;
+    box-shadow: var(--card-shadow);
+    text-align: center;
+  }
+  .hl-card .hl-icon { font-size: 28px; margin-bottom: 6px; }
+  .hl-card .hl-num {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 26px;
+    font-weight: 900;
+    color: var(--accent);
+  }
+  .hl-card .hl-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  /* ===== SECTION HEADERS ===== */
+  .section-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px; height: 32px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 16px;
+    border-radius: 50%;
+    margin-right: 10px;
+    flex-shrink: 0;
+  }
+  h2 {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 22px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    margin: 48px 0 8px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--gray-border);
+  }
+  h3 {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 30px 0 10px;
+    padding-left: 12px;
+    border-left: 4px solid var(--accent);
+  }
+
+  /* ===== BODY TEXT ===== */
+  p { margin: 12px 0; }
+
+  /* ===== STEP BLOCKS ===== */
+  .step {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin: 16px 0;
+    box-shadow: var(--card-shadow);
+    position: relative;
+  }
+  .step-title {
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .step-title .step-icon {
+    width: 24px; height: 24px;
+    background: var(--accent-light);
+    color: var(--accent);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .step ol, .step ul {
+    padding-left: 20px;
+    margin: 8px 0;
+    font-size: 15px;
+  }
+  .step li { margin: 6px 0; }
+
+  /* ===== TIP / WARNING BOXES ===== */
+  .tip, .warn, .result {
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 14px 0;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .tip {
+    background: var(--blue-light);
+    border-left: 4px solid var(--blue);
+  }
+  .tip::before { content: '💡 '; }
+  .warn {
+    background: var(--yellow-light);
+    border-left: 4px solid var(--yellow);
+  }
+  .warn::before { content: '⚠️ '; }
+  .result {
+    background: var(--green-light);
+    border-left: 4px solid var(--green);
+  }
+  .result::before { content: '✅ '; font-weight: 700; }
+
+  /* ===== TABLE ===== */
+  .info-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 14px 0;
+    font-size: 14px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+  }
+  .info-table th {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 14px;
+  }
+  .info-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--gray-border);
+    background: #fff;
+  }
+  .info-table tr:last-child td { border-bottom: none; }
+
+  /* ===== CODE ===== */
+  code {
+    background: var(--gray-bg);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 13.5px;
+    font-family: 'Menlo', 'Consolas', monospace;
+    color: var(--accent-dark);
+    word-break: break-all;
+  }
+  .code-block {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 14px 0;
+    font-size: 13px;
+    line-height: 1.7;
+    font-family: 'Menlo', 'Consolas', monospace;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .code-block .key { color: #89b4fa; }
+  .code-block .val { color: #a6e3a1; }
+  .code-block .comment { color: #6c7086; }
+
+  /* ===== FLOW CHART ===== */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 24px 0;
+    gap: 0;
+  }
+  .flow-node {
+    background: #fff;
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    min-width: 220px;
+    box-shadow: var(--card-shadow);
+  }
+  .flow-node.done {
+    background: var(--green-light);
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .flow-arrow {
+    width: 2px;
+    height: 20px;
+    background: var(--gray-border);
+    position: relative;
+  }
+  .flow-arrow::after {
+    content: '▼';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: var(--gray-border);
+  }
+
+  /* ===== FAQ ===== */
+  .faq-item {
+    background: #fff;
+    border-radius: var(--radius);
+    margin: 12px 0;
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+  }
+  .faq-q {
+    padding: 14px 18px;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .faq-q::before {
+    content: 'Q';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .faq-a {
+    padding: 0 18px 14px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.75;
+  }
+
+  /* ===== COST TABLE ===== */
+  .cost-card {
+    background: linear-gradient(135deg, #fff7ed, #fff);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin: 16px 0;
+    box-shadow: var(--card-shadow);
+    text-align: center;
+  }
+  .cost-total {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--accent);
+    margin: 8px 0 4px;
+  }
+  .cost-label { font-size: 13px; color: var(--text-secondary); }
+
+  /* ===== FOOTER ===== */
+  .footer {
+    text-align: center;
+    margin-top: 50px;
+    padding-top: 30px;
+    border-top: 2px solid var(--gray-border);
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+  .footer .emoji { font-size: 32px; margin-bottom: 10px; }
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  /* ===== DIVIDER ===== */
+  .divider {
+    text-align: center;
+    margin: 40px 0 30px;
+    font-size: 20px;
+    letter-spacing: 12px;
+    color: var(--gray-border);
+  }
+
+  /* ===== responsive ===== */
+  @media (max-width: 480px) {
+    body { font-size: 15px; padding: 0 16px 40px; }
+    .hero h1 { font-size: 24px; }
+    h2 { font-size: 19px; }
+    .highlights { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .hl-card { padding: 14px 10px; }
+    .hl-card .hl-num { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== HERO ========== -->
+<div class="hero">
+  <div class="hero-badge">保姆级教程</div>
+  <h1>AI人格复刻<br/>0代码搭建你的<span>专属AI聊天机器人</span></h1>
+  <p>把朋友、家人、偶像甚至虚构角色"装进"微信，随时随地和TA聊天。全程无需写一行代码。</p>
+</div>
+
+<!-- ========== HIGHLIGHT CARDS ========== -->
+<div class="highlights">
+  <div class="hl-card">
+    <div class="hl-icon">⏱️</div>
+    <div class="hl-num">60分钟</div>
+    <div class="hl-label">全程搭建时间</div>
+  </div>
+  <div class="hl-card">
+    <div class="hl-icon">💰</div>
+    <div class="hl-num">≈¥10/月</div>
+    <div class="hl-label">运行成本</div>
+  </div>
+  <div class="hl-card">
+    <div class="hl-icon">🧑‍💻</div>
+    <div class="hl-num">0行</div>
+    <div class="hl-label">代码编写</div>
+  </div>
+  <div class="hl-card">
+    <div class="hl-icon">☁️</div>
+    <div class="hl-num">24h</div>
+    <div class="hl-label">云端不断线</div>
+  </div>
+</div>
+
+<p>最终你会得到：一个挂在云端、永不断线的 AI 聊天机器人，可以通过<strong>微信或企业微信</strong>直接对话——朋友、家人、前任、偶像、虚构角色，都能复刻。</p>
+
+<!-- ========== 准备清单 ========== -->
+<h2><span class="section-num">0</span>你需要准备什么</h2>
+
+<table class="info-table">
+  <tr><th>项目</th><th>说明</th><th>费用</th></tr>
+  <tr><td>企业微信</td><td>个人也能注册，无需营业执照</td><td>免费</td></tr>
+  <tr><td>GitHub 账号</td><td>注册满 180 天可白嫖 ClawCloud</td><td>免费</td></tr>
+  <tr><td>ClawCloud Run</td><td>免费额度完全够用</td><td>免费</td></tr>
+  <tr><td>DeepSeek</td><td>约 ¥0.001/千token</td><td>聊一个月几毛钱</td></tr>
+  <tr><td>一台电脑</td><td>能上网就行</td><td>—</td></tr>
+</table>
+
+<div class="divider">· · ·</div>
+
+<!-- ==================== PART 1 ==================== -->
+<h2><span class="section-num">1</span>账号准备（约15分钟）</h2>
+
+<h3>1.1 注册企业微信</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">①</span>操作步骤</div>
+  <ol>
+    <li>打开 <code>work.weixin.qq.com</code>，点击<strong>「立即注册」</strong></li>
+    <li>选<strong>「自由企业注册」</strong>——个人也能填，企业名随便写，比如"张三工作室"</li>
+    <li>手机扫码验证 → 填写基本信息 → 创建完成</li>
+    <li>下载「企业微信」App 并登录</li>
+  </ol>
+</div>
+<div class="result">完成产物：一个属于你自己的企业微信</div>
+<div class="tip">不需要企业认证，不需要营业执照。未认证企业接待上限 100 人，自用完全够。</div>
+
+<h3>1.2 注册 DeepSeek</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">②</span>操作步骤</div>
+  <ol>
+    <li>打开 <code>platform.deepseek.com</code>，用手机号注册</li>
+    <li>左侧菜单 → <strong>API Keys</strong> → <strong>创建 API Key</strong></li>
+    <li>复制保存 Key（格式：<code>sk-xxxxxxxx...</code>），<strong>只会显示一次</strong></li>
+    <li>左侧 → <strong>充值</strong>，充 ¥10 够用很久</li>
+  </ol>
+</div>
+<div class="result">完成产物：一个 DeepSeek API Key</div>
+<div class="tip">也可用其他 AI 服务，只要兼容 OpenAI 协议即可——Kimi、通义千问、硅基流动、本地 Ollama 都行。</div>
+
+<h3>1.3 注册 GitHub</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">③</span>操作步骤</div>
+  <ol>
+    <li>打开 <code>github.com/signup</code>，注册完成即可</li>
+  </ol>
+</div>
+<div class="warn">如果账号注册<strong>未满 180 天</strong>，ClawCloud 不会白送 $5/月额度。可以等满 180 天或者用已有老号。</div>
+
+<h3>1.4 注册 ClawCloud Run</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">④</span>操作步骤</div>
+  <ol>
+    <li>打开 <code>run.claw.cloud</code></li>
+    <li>用 <strong>GitHub 账号</strong>登录</li>
+    <li>登录后选<strong>日本区</strong>（ap-northeast-1）</li>
+  </ol>
+</div>
+<div class="result">完成产物：一个 ClawCloud 账号 + 日本区项目</div>
+
+<div class="divider">· · ·</div>
+
+<!-- ==================== PART 2 ==================== -->
+<h2><span class="section-num">2</span>部署服务到云端（约15分钟）</h2>
+
+<h3>2.1 Fork 项目</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">①</span>操作步骤</div>
+  <ol>
+    <li>打开仓库 <code>github.com/Zovo314/wx_chatbot</code></li>
+    <li>右上角点 <strong>Fork</strong>，复制到自己的 GitHub 账号下</li>
+    <li>Fork 完成后进入你自己的仓库页面</li>
+  </ol>
+</div>
+
+<h3>2.2 让 GitHub Actions 构建镜像</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">②</span>操作步骤</div>
+  <ol>
+    <li>进入你 Fork 的仓库 → 顶部 <strong>Settings</strong> → 左侧 <strong>Actions → General</strong></li>
+    <li>确保 <strong>Allow all actions</strong> 已开启</li>
+    <li>回到 Code 页，随便改一下 README 提交一次（触发构建）</li>
+    <li>等 Actions 标签页变成 ✅（约 2 分钟）</li>
+  </ol>
+</div>
+<div class="result">完成产物：镜像 <code>ghcr.io/你的用户名/wx_chatbot:latest</code></div>
+<div class="warn">如果构建失败提示权限问题：Settings → Actions → General → Workflow permissions → 选 <strong>Read and write permissions</strong> → Save → 重新触发。</div>
+
+<h3>2.3 在 ClawCloud 创建应用</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">③</span>操作步骤</div>
+  <ol>
+    <li>ClawCloud 控制台 → <strong>App Launchpad</strong> → <strong>Create App</strong></li>
+    <li>按下表填写关键字段：</li>
+  </ol>
+  <table class="info-table">
+    <tr><th>字段</th><th>填什么</th></tr>
+    <tr><td>Application Name</td><td><code>wx-chatbot</code>（不能有下划线）</td></tr>
+    <tr><td>Image</td><td><code>ghcr.io/你的用户名/wx_chatbot:latest</code></td></tr>
+    <tr><td>CPU / Memory</td><td>默认即可（0.2 Core / 256 MB）</td></tr>
+    <tr><td>Container Port</td><td><code>8000</code></td></tr>
+    <tr><td>Public Access</td><td>勾选 Enable，Protocol 选 HTTPS</td></tr>
+  </table>
+  <ol start="3">
+    <li><strong>Advanced → Local Storage</strong>：Path 填 <code>/app/data</code>，Size 填 <code>1 GB</code>（必须配，否则重启丢数据）</li>
+    <li>Environment Variables <strong>先留空</strong>，后面再填</li>
+    <li>点 <strong>Deploy</strong></li>
+  </ol>
+</div>
+
+<h3>2.4 拿到服务 URL 和出站 IP</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">④</span>操作步骤</div>
+  <ol>
+    <li>等 Pod 状态变成 <strong>Running</strong>（约 2 分钟）</li>
+    <li>打开应用详情 → Network → 复制 <strong>Public Address</strong>
+      <br/>形如：<code>https://xxx.ap-northeast-1.clawcloudrun.com</code></li>
+    <li>拿出站 IP：点 <strong>Terminal</strong> 进入容器，执行：</li>
+  </ol>
+  <div class="code-block">python -c "import urllib.request; print(urllib.request.urlopen('https://ifconfig.me').read().decode())"</div>
+  <p style="font-size:14px;color:var(--text-secondary);">记下输出的 IP（日本区通常是 <code>47.79.37.186</code>）</p>
+</div>
+<div class="result">完成产物：服务 URL + 固定出站 IP</div>
+<div class="tip">此时服务没配环境变量会启动失败，不用慌，下一步就去填。</div>
+
+<div class="divider">· · ·</div>
+
+<!-- ==================== PART 3 ==================== -->
+<h2><span class="section-num">3</span>企业微信后台配置（约15分钟）</h2>
+
+<h3>3.1 创建自建应用</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">①</span>操作步骤</div>
+  <ol>
+    <li>登录企业微信后台 <code>work.weixin.qq.com</code></li>
+    <li>左侧 → <strong>应用管理</strong> → <strong>自建</strong> → <strong>创建应用</strong></li>
+    <li>填写应用名称（如"AI人格"），可见范围选自己</li>
+    <li>创建完成后进入应用详情页，<strong>记下这三个值</strong>：</li>
+  </ol>
+  <table class="info-table">
+    <tr><th>参数</th><th>在哪找</th></tr>
+    <tr><td><strong>AgentId</strong></td><td>应用详情页，一串数字</td></tr>
+    <tr><td><strong>CorpID</strong></td><td>我的企业 → 企业信息 → 企业ID</td></tr>
+    <tr><td><strong>Secret</strong></td><td>应用详情页点"查看"，会发到企业微信 App</td></tr>
+  </table>
+</div>
+
+<h3>3.2 回填 ClawCloud 环境变量</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">②</span>核心操作（最关键的一步）</div>
+  <p>回到 ClawCloud → wx-chatbot → <strong>Update</strong>，在 Environment Variables 区域填入：</p>
+  <div class="code-block"><span class="comment"># ===== 企业微信配置 =====</span>
+<span class="key">WX_CORPID</span>=<span class="val">你的企业ID</span>
+<span class="key">WX_CORPSECRET</span>=<span class="val">应用的Secret</span>
+<span class="key">WX_AGENTID</span>=<span class="val">应用的AgentId</span>
+<span class="key">WX_TOKEN</span>=<span class="val">随便起一个字符串（如 myToken123）</span>
+<span class="key">WX_ENCODING_AES_KEY</span>=<span class="val">随机43位字符串（数字+大小写字母）</span>
+
+<span class="comment"># ===== AI 配置 =====</span>
+<span class="key">AI_PROVIDER</span>=<span class="val">deepseek</span>
+<span class="key">AI_API_KEY</span>=<span class="val">你的DeepSeek API Key</span>
+<span class="key">AI_BASE_URL</span>=<span class="val">https://api.deepseek.com/v1</span>
+<span class="key">AI_MODEL</span>=<span class="val">deepseek-chat</span>
+<span class="key">AI_MAX_HISTORY</span>=<span class="val">20</span></div>
+</div>
+
+<div class="warn"><code>WX_TOKEN</code> 自己起 3-32 位随机字符串并<strong>记好</strong>；<code>WX_ENCODING_AES_KEY</code> 必须<strong>正好 43 位</strong>（大小写字母+数字），可以用在线随机字符串工具生成。填完点 <strong>Update</strong> 重启容器。</div>
+
+<h3>3.3 配置接收消息 API</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">③</span>操作步骤</div>
+  <ol>
+    <li>企业微信后台 → 应用详情页 → <strong>接收消息</strong> → <strong>设置API接收</strong></li>
+    <li>填写：</li>
+  </ol>
+  <table class="info-table">
+    <tr><th>字段</th><th>填什么</th></tr>
+    <tr><td>URL</td><td><code>你的服务URL/wx/callback</code></td></tr>
+    <tr><td>Token</td><td>和 <code>WX_TOKEN</code> 一模一样</td></tr>
+    <tr><td>EncodingAESKey</td><td>和 <code>WX_ENCODING_AES_KEY</code> 一模一样</td></tr>
+  </table>
+  <ol start="3">
+    <li>点<strong>保存</strong>——显示"验证成功"就可以继续了</li>
+  </ol>
+</div>
+
+<h3>3.4 加可信 IP 白名单</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">④</span>操作步骤</div>
+  <p>应用详情页 → <strong>开发者接口</strong> → <strong>企业可信IP</strong> → 编辑 → 添加第 2.4 步记下的出站 IP → 保存</p>
+</div>
+<div class="warn">不加这一步，后续发消息会报 60020 错误。</div>
+<div class="result">消息通道已贯通！现在可以在企业微信 App 里打开"AI人格"应用，发一条消息测试了。</div>
+
+<div class="divider">· · ·</div>
+
+<!-- ==================== PART 4 ==================== -->
+<h2><span class="section-num">4</span>创建人格（约10分钟）</h2>
+
+<h3>4.1 访问管理后台</h3>
+<p>浏览器打开 <code>你的服务URL/admin/</code>，能看到人格列表页面（初始为空）。</p>
+<div class="warn">后台没有登录验证，不要分享 URL 给别人。</div>
+
+<h3>4.2 配置 AI 参数</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">①</span>操作步骤</div>
+  <p>顶栏点 <strong>AI 配置</strong>，填写 Provider（deepseek）、Model（deepseek-chat）、API Key、Base URL，然后保存。</p>
+</div>
+<div class="tip">这里的配置会覆盖环境变量，之后换模型只改这里即可，不用重启容器。</div>
+
+<h3>4.3 创建第一个人格</h3>
+<div class="step">
+  <div class="step-title"><span class="step-icon">②</span>这是最有趣的一步！</div>
+  <p>点顶栏<strong>「创建」</strong>，填写以下信息：</p>
+  <table class="info-table">
+    <tr><th>字段</th><th>说明</th><th>示例</th></tr>
+    <tr><td>Slug</td><td>英文/拼音代号，唯一</td><td><code>xiaoming</code></td></tr>
+    <tr><td>花名</td><td>显示名</td><td>小明</td></tr>
+    <tr><td>基本信息</td><td>一句话关系描述</td><td>大学室友 认识八年 上海 产品经理</td></tr>
+    <tr><td>性格画像</td><td>标签+性格</td><td>ENFP 双子座 话痨 嘴硬心软</td></tr>
+    <tr><td>聊天记录</td><td>可选上传</td><td>微信/QQ 导出的聊天文件</td></tr>
+    <tr><td>口述文本</td><td>可选补充</td><td>典型对话、难忘故事</td></tr>
+  </table>
+  <p>点<strong>「生成人格」</strong>→ 等待 20-30 秒 → AI 会自动生成人物记忆、性格画像和完整的 System Prompt，你可以在详情页继续微调。</p>
+</div>
+
+<h3>4.4 测试对话</h3>
+<p>两种方式随你选：</p>
+<div class="step">
+  <p><strong>方式 A：后台直接测</strong>——详情页有测试对话框，发消息就能看 AI 回复（最快）</p>
+  <p><strong>方式 B：企业微信 App</strong>——打开工作台 → 你的应用 → 发消息</p>
+</div>
+
+<div class="divider">· · ·</div>
+
+<!-- ==================== PART 5 ==================== -->
+<h2><span class="section-num">5</span>可选：接入微信客服</h2>
+
+<p>如果你想让<strong>普通微信用户</strong>也能和 AI 聊天（不限于企业微信内部），需要额外配置微信客服功能。</p>
+
+<div class="step">
+  <div class="step-title"><span class="step-icon">①</span>开通微信客服</div>
+  <p>企业微信后台 → <strong>应用管理</strong> → <strong>微信客服</strong> → 按提示开通（免费）</p>
+</div>
+
+<div class="step">
+  <div class="step-title"><span class="step-icon">②</span>授权应用</div>
+  <p>微信客服页面 → <strong>可调用接口的应用</strong> → <strong>修改</strong> → 勾选你的自建应用 → 保存</p>
+</div>
+
+<div class="step">
+  <div class="step-title"><span class="step-icon">③</span>加环境变量</div>
+  <p>ClawCloud 环境变量加一行：</p>
+  <div class="code-block"><span class="key">WX_KF_SECRET</span>=<span class="val">你的自建应用的Secret</span></div>
+  <p>保存 → 重启</p>
+</div>
+
+<div class="step">
+  <div class="step-title"><span class="step-icon">④</span>创建客服账号 + 绑定人格</div>
+  <ol>
+    <li>微信客服页面底部 → <strong>创建账号</strong> → 填名字、上传头像</li>
+    <li>系统会生成一个<strong>客服二维码</strong></li>
+    <li>访问 <code>你的服务URL/admin/kf</code> → 下拉选人格 → 点绑定</li>
+    <li>把二维码发给朋友，扫码即可在微信内与 AI 聊天</li>
+  </ol>
+</div>
+
+<div class="divider">· · ·</div>
+
+<!-- ==================== FLOW CHART ==================== -->
+<h2><span class="section-num">⚡</span>全流程速览</h2>
+
+<div class="flow">
+  <div class="flow-node">注册企业微信 + GitHub + DeepSeek</div>
+  <div class="flow-arrow"></div>
+  <div class="flow-node">Fork 仓库 → GitHub Actions 构建镜像</div>
+  <div class="flow-arrow"></div>
+  <div class="flow-node">ClawCloud 创建应用 → 拿 URL + 出站 IP</div>
+  <div class="flow-arrow"></div>
+  <div class="flow-node">填写环境变量 → 重启容器</div>
+  <div class="flow-arrow"></div>
+  <div class="flow-node">企业微信配置回调 + 可信 IP</div>
+  <div class="flow-arrow"></div>
+  <div class="flow-node">访问 /admin/ → 配 AI → 创建人格</div>
+  <div class="flow-arrow"></div>
+  <div class="flow-node done">在企业微信发消息 → AI 回复 ✅</div>
+  <div class="flow-arrow"></div>
+  <div class="flow-node">（可选）接入微信客服 → 分享二维码</div>
+</div>
+
+<div class="divider">· · ·</div>
+
+<!-- ==================== COST ==================== -->
+<h2><span class="section-num">💰</span>费用一览</h2>
+
+<div class="cost-card">
+  <div class="cost-label">每月运行总成本</div>
+  <div class="cost-total">≈ ¥10 - 20</div>
+  <div class="cost-label" style="margin-top:12px;">
+    ClawCloud 免费额度（$5/月）实际约 $1-2 &nbsp;|&nbsp; DeepSeek 正常聊天约 ¥1-5
+  </div>
+</div>
+
+<div class="divider">· · ·</div>
+
+<!-- ==================== FAQ ==================== -->
+<h2><span class="section-num">?</span>常见问题</h2>
+
+<div class="faq-item">
+  <div class="faq-q">回调验证失败怎么办？</div>
+  <div class="faq-a">最常见的原因是 <code>WX_TOKEN</code> 或 <code>WX_ENCODING_AES_KEY</code> 在两边填的值不一致（多一个空格都不行）。其次检查 <code>WX_CORPID</code> 是否正确，以及容器是否重启完毕。URL 末尾不要多加 <code>/</code>。去 ClawCloud → Logs 看具体报错。</div>
+</div>
+
+<div class="faq-item">
+  <div class="faq-q">能收到消息但 AI 不回复？</div>
+  <div class="faq-a">检查 AI API Key 是否正确、余额是否充足（查 DeepSeek 后台）。确认 <code>/admin/config</code> 已配置 AI 参数。查看 ClawCloud Logs 排查网络问题。</div>
+</div>
+
+<div class="faq-item">
+  <div class="faq-q">发消息报 errcode: 60020？</div>
+  <div class="faq-a">出站 IP 没加到企业可信 IP 白名单。去应用详情 → 开发者接口 → 企业可信 IP → 添加你的出站 IP。</div>
+</div>
+
+<div class="faq-item">
+  <div class="faq-q">想用其他 AI 不用 DeepSeek？</div>
+  <div class="faq-a">完全可以！只要兼容 OpenAI 协议都行。在 <code>/admin/config</code> 里改 Base URL、API Key、Model，保存后立即生效，不用重启容器。</div>
+</div>
+
+<div class="faq-item">
+  <div class="faq-q">数据会丢吗？</div>
+  <div class="faq-a">数据库存在容器的 <code>/app/data/</code> 路径下，ClawCloud 的 Local Storage 是持久卷，容器重启和更新镜像都不会丢。但删除整个 App 会丢，建议定期在后台导出备份。</div>
+</div>
+
+<div class="faq-item">
+  <div class="faq-q">怎么改代码后让云端生效？</div>
+  <div class="faq-a">在 GitHub 上改代码并提交 → GitHub Actions 自动构建新镜像（约 2 分钟）→ ClawCloud 里点 Update 拉新镜像即可。</div>
+</div>
+
+<div class="divider">· · ·</div>
+
+<!-- ==================== 聊天记录导出 ==================== -->
+<h2><span class="section-num">📎</span>附录：聊天记录导出</h2>
+<p>真实聊天记录是让 AI 更像目标人物的<strong>最好原料</strong>。没有也没关系，光靠文字描述也能生成人格。</p>
+
+<table class="info-table">
+  <tr><th>平台</th><th>推荐工具</th></tr>
+  <tr><td>微信（Mac）</td><td>WechatExporter、pywxdump</td></tr>
+  <tr><td>微信（Windows）</td><td>留痕（WeChatMsg）— 界面化，最推荐</td></tr>
+  <tr><td>QQ</td><td>QQ 自带的"消息管理器 → 导出消息记录"</td></tr>
+</table>
+<p style="font-size:14px;color:var(--text-secondary);margin-top:8px;">导出后在"创建人格"页面直接上传文件，系统会自动解析。</p>
+
+<!-- ==================== FOOTER ==================== -->
+<div class="footer">
+  <div class="emoji">🎉</div>
+  <p style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px;">祝你成功复刻心中的那个 TA！</p>
+  <p>开源项目地址：<a href="https://github.com/Zovo314/wx_chatbot">github.com/Zovo314/wx_chatbot</a></p>
+  <p style="margin-top:4px;">遇到问题欢迎在 GitHub 仓库提 Issue</p>
+</div>
+
+</body>
+</html>
