@@ -93,7 +93,7 @@ def parse_qq_mht(file_path: str, target_name: str) -> dict:
 def main():
     parser = argparse.ArgumentParser(description='QQ 聊天记录解析器')
     parser.add_argument('--file', required=True, help='输入文件路径')
-    parser.add_argument('--target', required=True, help='前任的名字/昵称')
+    parser.add_argument('--target', required=True, help='目标人物的名字/昵称')
     parser.add_argument('--output', required=True, help='输出文件路径')
     
     args = parser.parse_args()

@@ -57,7 +57,7 @@ async def _drain_kf_history():
             print(f"[启动] 跳过客服 {open_kfid} 历史消息失败（忽略）: {e}")
 
 
-app = FastAPI(title="前任.skill", lifespan=lifespan)
+app = FastAPI(title="AI人格复刻", lifespan=lifespan)
 
 static_dir = Path(__file__).resolve().parent / "static"
 if static_dir.exists():

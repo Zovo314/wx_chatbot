@@ -1,4 +1,7 @@
-"""人格生成服务：调用 AI 生成 memory + persona，拼装 system_prompt。"""
+"""人格生成服务：调用 AI 生成 memory + persona，拼装 system_prompt。
+
+支持任意关系类型的人物复刻：朋友、家人、同事、前任、暧昧对象、偶像、虚构角色等。
+"""
 
 from pathlib import Path
 
@@ -40,7 +43,7 @@ async def generate_memory(
     memory_analyzer = _read_prompt("memory_analyzer.md")
     memory_builder = _read_prompt("memory_builder.md")
 
-    system = f"""你是一个关系记忆分析专家。根据提供的原材料，生成 Relationship Memory 文档。
+    system = f"""你是一个人物记忆分析专家。根据提供的原材料，生成 Person Memory 文档。目标人物可以是任何关系类型（朋友、家人、同事、前任、暧昧对象、偶像、虚构角色等）。
 
 {memory_analyzer}
 
@@ -106,7 +109,7 @@ def build_system_prompt(name: str, memory: str, persona: str) -> str:
 
 ---
 
-## 关系记忆
+## 人物记忆
 
 {memory}
 
