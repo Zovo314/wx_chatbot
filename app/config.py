@@ -17,8 +17,6 @@ WX_AGENTID = int(os.getenv("WX_AGENTID", "0"))
 
 # 微信客服
 WX_KF_SECRET = os.getenv("WX_KF_SECRET", "")
-WX_KF_TOKEN = os.getenv("WX_KF_TOKEN", "")
-WX_KF_ENCODING_AES_KEY = os.getenv("WX_KF_ENCODING_AES_KEY", "")
 
 # AI
 AI_PROVIDER = os.getenv("AI_PROVIDER", "openai")

@@ -70,10 +70,8 @@ WX_TOKEN=your_token
 WX_ENCODING_AES_KEY=your_aes_key
 WX_AGENTID=1000002
 
-# 微信客服
+# 微信客服（值 = 授权调用客服 API 的自建应用的 CorpSecret）
 WX_KF_SECRET=your_kf_secret
-WX_KF_TOKEN=your_kf_token
-WX_KF_ENCODING_AES_KEY=your_kf_aes_key
 
 # AI API（OpenAI 兼容格式）
 AI_PROVIDER=deepseek
