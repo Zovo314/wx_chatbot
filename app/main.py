@@ -12,9 +12,12 @@ from app.routers import admin, api, wechat
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    # 恢复客服-人格绑定关系
-    await _restore_kf_bindings()
-    await _drain_kf_history()
+    # 客服模块失败不应阻塞主服务启动
+    try:
+        await _restore_kf_bindings()
+        await _drain_kf_history()
+    except Exception as e:
+        print(f"[启动] 客服模块初始化失败（忽略，主服务继续）: {e}")
     yield
 
 
@@ -37,14 +40,21 @@ async def _restore_kf_bindings():
 
 
 async def _drain_kf_history():
-    """启动时跳过所有历史客服消息，避免重复处理。"""
+    """启动时跳过所有历史客服消息，避免重复处理。
+
+    客服功能是可选的，任何失败（如 Secret 未配置、企业未开通客服模块）
+    都只打印警告，不应阻塞主服务启动。
+    """
     from app.services.kf import sync_kf_messages, get_kf_persona_map
     for open_kfid in get_kf_persona_map():
-        while True:
-            msgs = await sync_kf_messages(open_kfid)
-            if not msgs:
-                break
-        print(f"[启动] 已跳过 {open_kfid} 的历史消息")
+        try:
+            while True:
+                msgs = await sync_kf_messages(open_kfid)
+                if not msgs:
+                    break
+            print(f"[启动] 已跳过 {open_kfid} 的历史消息")
+        except Exception as e:
+            print(f"[启动] 跳过客服 {open_kfid} 历史消息失败（忽略）: {e}")
 
 
 app = FastAPI(title="前任.skill", lifespan=lifespan)
