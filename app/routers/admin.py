@@ -1,42 +1,73 @@
-"""Web 后台路由：人格管理 + AI 配置。"""
+"""Web 后台路由 v2：人格管理 + AI 配置 + 双 Pipeline 路由。
+
+变更（相对 v1）：
+1. 创建表单接收 persona_type（private / public / fictional）
+2. 不同类型走不同的 Pipeline（persona_v2.generate_persona_v2）
+3. 新增维度增量重生成接口 /detail/{slug}/regen/{dimension}
+4. meta_json 写入 dimensions / quality_warnings / persona_type
+"""
 
 import json
 import subprocess
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Request, Depends, Form, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import BASE_DIR
 from app.database import get_db
-from app.models import Persona, AIConfig
+from app.models import Persona, PERSONA_TYPES
 from app.services.chat import get_ai_config
-from app.services.persona_gen import generate_memory, generate_persona, build_system_prompt
+from app.services.persona_v2 import (
+    PersonaPayload,
+    generate_persona_v2,
+    regenerate_dimension,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
+templates = Jinja2Templates(
+    directory=str(Path(__file__).resolve().parent.parent / "templates")
+)
 
 TOOLS_DIR = BASE_DIR / "tools"
 
 
+# -------- 列表 --------
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Persona).order_by(Persona.id.desc()))
     personas = result.scalars().all()
-    return templates.TemplateResponse(request, name="index.html", context={"personas": personas})
+    return templates.TemplateResponse(
+        request, name="index.html", context={"personas": personas}
+    )
 
 
+# -------- 创建：第一步选择类型 --------
 @router.get("/create", response_class=HTMLResponse)
-async def create_page(request: Request):
-    return templates.TemplateResponse(request, name="create.html")
+async def create_choose_type(request: Request):
+    """显示类型选择卡片。"""
+    return templates.TemplateResponse(request, name="create_type.html")
 
 
+@router.get("/create/{persona_type}", response_class=HTMLResponse)
+async def create_form(request: Request, persona_type: str):
+    """根据类型显示对应的表单。"""
+    if persona_type not in PERSONA_TYPES:
+        return RedirectResponse(url="/admin/create", status_code=303)
+    template = "create_private.html" if persona_type == "private" else "create_non_private.html"
+    return templates.TemplateResponse(
+        request, name=template, context={"persona_type": persona_type}
+    )
+
+
+# -------- 向后兼容：v1 旧接口 POST /admin/create --------
+# 老的浏览器收藏 / 旧表单提交会落到这里，统一按 private 处理。
 @router.post("/create")
-async def create_persona(
+async def create_legacy(
     request: Request,
     slug: str = Form(...),
     name: str = Form(...),
@@ -46,39 +77,103 @@ async def create_persona(
     chat_file: UploadFile = File(None),
     db: AsyncSession = Depends(get_db),
 ):
-    # 检查 slug 是否重复
+    """v1 兼容入口：转发到 private 创建。"""
+    return await _create_persona_common(
+        request=request, db=db,
+        persona_type="private",
+        slug=slug, name=name,
+        basic_info=basic_info, personality=personality,
+        relationship_context="",
+        raw_text=raw_text, chat_file=chat_file,
+        domain="", works="",
+    )
+
+
+# -------- 创建：private 提交 --------
+@router.post("/create/private")
+async def create_private(
+    request: Request,
+    slug: str = Form(...),
+    name: str = Form(...),
+    basic_info: str = Form(""),
+    personality: str = Form(""),
+    relationship_context: str = Form(""),
+    raw_text: str = Form(""),
+    chat_file: UploadFile = File(None),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _create_persona_common(
+        request=request, db=db,
+        persona_type="private",
+        slug=slug, name=name,
+        basic_info=basic_info, personality=personality,
+        relationship_context=relationship_context,
+        raw_text=raw_text, chat_file=chat_file,
+        domain="", works="",
+    )
+
+
+# -------- 创建：non_private（public/fictional）提交 --------
+@router.post("/create/non_private")
+async def create_non_private(
+    request: Request,
+    persona_type: str = Form(...),    # public 或 fictional
+    slug: str = Form(...),
+    name: str = Form(...),
+    basic_info: str = Form(""),
+    personality: str = Form(""),
+    domain: str = Form(""),
+    works: str = Form(""),
+    raw_text: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+):
+    if persona_type not in ("public", "fictional"):
+        raise HTTPException(400, "非法的 persona_type")
+    return await _create_persona_common(
+        request=request, db=db,
+        persona_type=persona_type,
+        slug=slug, name=name,
+        basic_info=basic_info, personality=personality,
+        relationship_context="",
+        raw_text=raw_text, chat_file=None,
+        domain=domain, works=works,
+    )
+
+
+async def _create_persona_common(
+    request: Request,
+    db: AsyncSession,
+    persona_type: str,
+    slug: str,
+    name: str,
+    basic_info: str,
+    personality: str,
+    relationship_context: str,
+    raw_text: str,
+    chat_file: UploadFile | None,
+    domain: str,
+    works: str,
+):
+    # 1. slug 唯一性
     existing = await db.execute(select(Persona).where(Persona.slug == slug))
     if existing.scalar_one_or_none():
-        return templates.TemplateResponse(request, name="create.html", context={
-            "error": f"代号「{slug}」已存在",
-            "slug": slug, "name": name, "basic_info": basic_info,
-            "personality": personality, "raw_text": raw_text,
-        })
+        template_name = "create_private.html" if persona_type == "private" else "create_non_private.html"
+        return templates.TemplateResponse(
+            request, name=template_name,
+            context={
+                "error": f"代号「{slug}」已存在",
+                "persona_type": persona_type,
+                "slug": slug, "name": name,
+                "basic_info": basic_info, "personality": personality,
+                "relationship_context": relationship_context,
+                "domain": domain, "works": works, "raw_text": raw_text,
+            },
+        )
 
-    # 处理上传的聊天记录文件
+    # 2. 解析聊天记录文件（仅 private）
     file_analysis = ""
-    if chat_file and chat_file.filename:
-        content_bytes = await chat_file.read()
-        suffix = Path(chat_file.filename).suffix
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False, mode="wb") as tmp:
-            tmp.write(content_bytes)
-            tmp_path = tmp.name
-        try:
-            out_path = tempfile.mktemp(suffix=".txt")
-            parser = TOOLS_DIR / "wechat_parser.py"
-            if suffix.lower() in (".mht",):
-                parser = TOOLS_DIR / "qq_parser.py"
-            result = subprocess.run(
-                ["python3", str(parser), "--file", tmp_path, "--target", name, "--output", out_path],
-                capture_output=True, text=True, timeout=30,
-            )
-            if Path(out_path).exists():
-                file_analysis = Path(out_path).read_text(encoding="utf-8")
-                Path(out_path).unlink(missing_ok=True)
-        except Exception:
-            pass
-        finally:
-            Path(tmp_path).unlink(missing_ok=True)
+    if persona_type == "private" and chat_file and chat_file.filename:
+        file_analysis = await _parse_chat_file(chat_file, name)
 
     raw_material = ""
     if file_analysis:
@@ -86,28 +181,61 @@ async def create_persona(
     if raw_text:
         raw_material += f"### 用户口述\n{raw_text}\n"
 
+    # 3. 构造 payload 调用 v2
+    payload = PersonaPayload(
+        name=name,
+        persona_type=persona_type,
+        basic_info=basic_info,
+        personality=personality,
+        relationship_context=relationship_context,
+        domain=domain,
+        works=works,
+        raw_material=raw_material,
+    )
+
+    # ASK 模式拦截：信息严重不足直接返回引导问卷
+    if payload.mode == "ASK":
+        template_name = "create_private.html" if persona_type == "private" else "create_non_private.html"
+        return templates.TemplateResponse(
+            request, name=template_name,
+            context={
+                "error": "信息量不足以生成有质量的人格，请补全基本信息、性格画像或语料后再试。",
+                "persona_type": persona_type,
+                "slug": slug, "name": name,
+                "basic_info": basic_info, "personality": personality,
+                "relationship_context": relationship_context,
+                "domain": domain, "works": works, "raw_text": raw_text,
+                "ask_mode": True,
+            },
+        )
+
     config = await get_ai_config(db)
+    result = await generate_persona_v2(config, payload)
 
-    # 并发生成 memory 和 persona
-    import asyncio
-    memory_task = generate_memory(config, name, basic_info, personality, raw_material)
-    persona_task = generate_persona(config, name, basic_info, personality, raw_material)
-    memory, persona_text = await asyncio.gather(memory_task, persona_task)
-
-    system_prompt = build_system_prompt(name, memory, persona_text)
-
+    # 4. 写入 DB
     meta = {
         "name": name,
         "slug": slug,
-        "profile": {"basic_info": basic_info, "personality": personality},
+        "persona_type": persona_type,
+        "mode": result["mode"],
+        "profile": {
+            "basic_info": basic_info,
+            "personality": personality,
+            "relationship_context": relationship_context,
+            "domain": domain,
+            "works": works,
+        },
+        "dimensions": result["dimensions"],
+        "quality_warnings": result["quality_warnings"],
     }
 
     p = Persona(
         slug=slug,
         name=name,
-        memory=memory,
-        persona=persona_text,
-        system_prompt=system_prompt,
+        persona_type=persona_type,
+        memory=result["memory"],
+        persona=result["persona"],
+        system_prompt=result["system_prompt"],
         meta_json=json.dumps(meta, ensure_ascii=False),
     )
     db.add(p)
@@ -116,20 +244,57 @@ async def create_persona(
     return RedirectResponse(url=f"/admin/detail/{slug}", status_code=303)
 
 
+# -------- 聊天记录解析（沿用 v1） --------
+async def _parse_chat_file(chat_file: UploadFile, name: str) -> str:
+    content_bytes = await chat_file.read()
+    suffix = Path(chat_file.filename).suffix
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False, mode="wb") as tmp:
+        tmp.write(content_bytes)
+        tmp_path = tmp.name
+    try:
+        out_path = tempfile.mktemp(suffix=".txt")
+        parser = TOOLS_DIR / "wechat_parser.py"
+        if suffix.lower() in (".mht",):
+            parser = TOOLS_DIR / "qq_parser.py"
+        subprocess.run(
+            ["python3", str(parser), "--file", tmp_path,
+             "--target", name, "--output", out_path],
+            capture_output=True, text=True, timeout=30,
+        )
+        if Path(out_path).exists():
+            txt = Path(out_path).read_text(encoding="utf-8")
+            Path(out_path).unlink(missing_ok=True)
+            return txt
+    except Exception:  # noqa: BLE001
+        pass
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
+    return ""
+
+
+# -------- 详情 --------
 @router.get("/detail/{slug}", response_class=HTMLResponse)
-async def detail_page(request: Request, slug: str, db: AsyncSession = Depends(get_db)):
+async def detail_page(
+    request: Request, slug: str, db: AsyncSession = Depends(get_db)
+):
     result = await db.execute(select(Persona).where(Persona.slug == slug))
     persona = result.scalar_one_or_none()
     if not persona:
         return RedirectResponse(url="/admin/")
-    return templates.TemplateResponse(request, name="detail.html", context={"persona": persona})
+    meta = json.loads(persona.meta_json) if persona.meta_json else {}
+    return templates.TemplateResponse(
+        request, name="detail.html",
+        context={"persona": persona, "meta": meta},
+    )
 
 
+# -------- 手动编辑（保留 v1） --------
 @router.post("/detail/{slug}/edit")
 async def edit_persona(
     slug: str,
     memory: str = Form(""),
     persona_text: str = Form(""),
+    system_prompt: str = Form(""),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Persona).where(Persona.slug == slug))
@@ -138,11 +303,52 @@ async def edit_persona(
         return RedirectResponse(url="/admin/")
     p.memory = memory
     p.persona = persona_text
-    p.system_prompt = build_system_prompt(p.name, memory, persona_text)
+    if system_prompt:
+        p.system_prompt = system_prompt
     await db.commit()
     return RedirectResponse(url=f"/admin/detail/{slug}", status_code=303)
 
 
+# -------- 增量重生成单个维度 --------
+@router.post("/detail/{slug}/regen/{dimension}")
+async def regen_dimension(
+    slug: str,
+    dimension: str,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Persona).where(Persona.slug == slug))
+    p = result.scalar_one_or_none()
+    if not p:
+        raise HTTPException(404, "persona not found")
+
+    meta = json.loads(p.meta_json) if p.meta_json else {}
+    profile = meta.get("profile", {})
+
+    payload = PersonaPayload(
+        name=p.name,
+        persona_type=p.persona_type,
+        basic_info=profile.get("basic_info", ""),
+        personality=profile.get("personality", ""),
+        relationship_context=profile.get("relationship_context", ""),
+        domain=profile.get("domain", ""),
+        works=profile.get("works", ""),
+        raw_material="",  # 增量更新不重新解析语料
+    )
+
+    config = await get_ai_config(db)
+    res = await regenerate_dimension(config, payload, dimension)
+    if not res.ok:
+        return JSONResponse({"ok": False, "error": res.error}, status_code=400)
+
+    # 更新 meta_json.dimensions[dimension]
+    meta.setdefault("dimensions", {})[dimension] = res.data
+    p.meta_json = json.dumps(meta, ensure_ascii=False)
+    await db.commit()
+
+    return JSONResponse({"ok": True, "dimension": dimension, "data": res.data})
+
+
+# -------- 删除 --------
 @router.post("/detail/{slug}/delete")
 async def delete_persona(slug: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Persona).where(Persona.slug == slug))
@@ -153,10 +359,13 @@ async def delete_persona(slug: str, db: AsyncSession = Depends(get_db)):
     return RedirectResponse(url="/admin/", status_code=303)
 
 
+# -------- AI 配置（沿用 v1） --------
 @router.get("/config", response_class=HTMLResponse)
 async def config_page(request: Request, db: AsyncSession = Depends(get_db)):
     config = await get_ai_config(db)
-    return templates.TemplateResponse(request, name="config.html", context={"config": config})
+    return templates.TemplateResponse(
+        request, name="config.html", context={"config": config}
+    )
 
 
 @router.post("/config")
@@ -179,6 +388,7 @@ async def save_config(
     return RedirectResponse(url="/admin/config", status_code=303)
 
 
+# -------- 微信客服（沿用 v1） --------
 @router.get("/kf", response_class=HTMLResponse)
 async def kf_page(request: Request, db: AsyncSession = Depends(get_db)):
     from app.services.kf import get_kf_persona_map, list_kf_accounts
@@ -187,11 +397,12 @@ async def kf_page(request: Request, db: AsyncSession = Depends(get_db)):
     kf_map = get_kf_persona_map()
     try:
         kf_accounts = await list_kf_accounts()
-    except Exception:
+    except Exception:  # noqa: BLE001
         kf_accounts = []
-    return templates.TemplateResponse(request, name="kf.html", context={
-        "personas": personas, "kf_map": kf_map, "kf_accounts": kf_accounts,
-    })
+    return templates.TemplateResponse(
+        request, name="kf.html",
+        context={"personas": personas, "kf_map": kf_map, "kf_accounts": kf_accounts},
+    )
 
 
 @router.post("/kf/create")
@@ -200,7 +411,10 @@ async def kf_create(
     slug: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
-    from app.services.kf import create_kf_account, get_kf_account_link, bind_kf_persona
+    from app.services.kf import (
+        create_kf_account, get_kf_account_link, bind_kf_persona,
+        get_kf_persona_map,
+    )
     result = await db.execute(select(Persona).where(Persona.slug == slug))
     persona = result.scalar_one_or_none()
     if not persona:
@@ -212,21 +426,21 @@ async def kf_create(
         link = await get_kf_account_link(open_kfid)
         bind_kf_persona(open_kfid, slug)
 
-        # 保存 kf 信息到 persona 的 meta_json
         meta = json.loads(persona.meta_json) if persona.meta_json else {}
         meta["kf"] = {"open_kfid": open_kfid, "link": link}
         persona.meta_json = json.dumps(meta, ensure_ascii=False)
         await db.commit()
-
         return RedirectResponse(url="/admin/kf", status_code=303)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         result = await db.execute(select(Persona).order_by(Persona.id.desc()))
         personas = result.scalars().all()
-        from app.services.kf import get_kf_persona_map
-        return templates.TemplateResponse(request, name="kf.html", context={
-            "personas": personas, "kf_accounts": [],
-            "kf_map": get_kf_persona_map(), "error": str(e),
-        })
+        return templates.TemplateResponse(
+            request, name="kf.html",
+            context={
+                "personas": personas, "kf_accounts": [],
+                "kf_map": get_kf_persona_map(), "error": str(e),
+            },
+        )
 
 
 @router.post("/kf/bind")

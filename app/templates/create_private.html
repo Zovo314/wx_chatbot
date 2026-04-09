@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>创建私人关系人格</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; color: #222; }
+  h1 { font-size: 22px; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #f0f4ff; color: #2c7be5; }
+  label { display: block; margin-top: 18px; font-size: 13px; color: #555; }
+  input[type=text], textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
+  textarea { min-height: 80px; }
+  .hint { font-size: 12px; color: #999; margin-top: 4px; }
+  .err { background: #fff0f0; color: #c00; padding: 10px; border-radius: 6px; margin: 16px 0; font-size: 13px; }
+  button { margin-top: 20px; padding: 10px 24px; border: 0; border-radius: 6px; background: #2c7be5; color: #fff; font-size: 14px; cursor: pointer; }
+  .back { display: inline-block; margin-bottom: 16px; color: #888; text-decoration: none; font-size: 13px; }
+</style>
+</head>
+<body>
+<a class="back" href="/admin/create">← 选择其他类型</a>
+<h1>创建私人关系人格 <span class="tag">PRIVATE</span></h1>
+
+{% if error %}<div class="err">{{ error }}</div>{% endif %}
+
+<form method="post" action="/admin/create/private" enctype="multipart/form-data">
+  <label>代号 slug（唯一标识，英文/数字）
+    <input type="text" name="slug" value="{{ slug or '' }}" required>
+  </label>
+
+  <label>名称
+    <input type="text" name="name" value="{{ name or '' }}" required>
+    <div class="hint">AI 扮演时使用的名字</div>
+  </label>
+
+  <label>关系背景
+    <textarea name="relationship_context" placeholder="例：前任，恋爱 2 年，分手 6 个月。性格高冷理工男。">{{ relationship_context or '' }}</textarea>
+  </label>
+
+  <label>基本信息
+    <textarea name="basic_info" placeholder="年龄/职业/地点等">{{ basic_info or '' }}</textarea>
+  </label>
+
+  <label>性格画像
+    <textarea name="personality" placeholder="主要性格特征，越具体越好">{{ personality or '' }}</textarea>
+  </label>
+
+  <label>聊天记录文件（可选，推荐）
+    <input type="file" name="chat_file" accept=".txt,.html,.htm,.mht,.csv,.json">
+    <div class="hint">支持 WeChatMsg / PyWxDump / 留痕导出格式，以及 QQ 的 .mht</div>
+  </label>
+
+  <label>口述补充（可选）
+    <textarea name="raw_text" placeholder="补充任何 ta 的细节、说话习惯、共同回忆">{{ raw_text or '' }}</textarea>
+  </label>
+
+  <button type="submit">生成人格</button>
+</form>
+</body>
+</html>

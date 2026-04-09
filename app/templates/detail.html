@@ -1,45 +1,94 @@
-{% extends "base.html" %}
-{% block title %}{{ persona.name }} — AI人格复刻{% endblock %}
-{% block content %}
-<div class="flex items-center justify-between mb-6">
-  <div>
-    <h1 class="text-2xl font-bold text-gray-800">{{ persona.name }}</h1>
-    <p class="text-sm text-gray-500">#{{ persona.slug }}</p>
-  </div>
-  <form method="post" action="/admin/detail/{{ persona.slug }}/delete"
-    onsubmit="return confirm('确定要删除「{{ persona.name }}」吗？')">
-    <button type="submit" class="text-sm text-red-500 hover:text-red-700">删除</button>
-  </form>
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>{{ persona.name }} - 人格详情</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", sans-serif; max-width: 920px; margin: 30px auto; padding: 0 20px; color: #222; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  h2 { font-size: 16px; margin-top: 28px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+  .meta { color: #888; font-size: 13px; margin-bottom: 18px; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #f0f4ff; color: #2c7be5; }
+  .tag-mode { background: #eef9ee; color: #2a8f2a; }
+  pre { background: #f7f7f9; padding: 14px; border-radius: 6px; font-size: 12px; overflow-x: auto; max-height: 360px; }
+  .warn { background: #fff8e7; border: 1px solid #f0d68a; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; color: #7a5b00; }
+  .warn ul { margin: 6px 0 0; padding-left: 20px; }
+  .row { display: flex; gap: 12px; margin-top: 12px; }
+  button, .btn { padding: 7px 14px; border: 1px solid #ddd; border-radius: 6px; background: #fff; font-size: 13px; cursor: pointer; text-decoration: none; color: #222; }
+  button.danger { color: #c00; border-color: #fcc; }
+  .back { display: inline-block; color: #888; text-decoration: none; font-size: 13px; margin-bottom: 10px; }
+  .dim-card { border: 1px solid #eee; border-radius: 6px; padding: 12px; margin-bottom: 10px; }
+  .dim-card .head { display: flex; justify-content: space-between; align-items: center; }
+  .dim-card .head strong { font-size: 13px; }
+  .small { font-size: 12px; color: #888; }
+</style>
+</head>
+<body>
+<a class="back" href="/admin/">← 返回列表</a>
+
+<h1>
+  {{ persona.name }}
+  <span class="tag">{{ persona.persona_type|upper }}</span>
+  {% if meta.mode %}<span class="tag tag-mode">{{ meta.mode }}</span>{% endif %}
+</h1>
+<div class="meta">slug: {{ persona.slug }} · 创建于 {{ persona.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+
+{% if meta.quality_warnings %}
+<div class="warn">
+  <strong>质量提醒：</strong>
+  <ul>
+    {% for w in meta.quality_warnings %}<li>{{ w }}</li>{% endfor %}
+  </ul>
 </div>
+{% endif %}
 
-<div class="bg-white rounded-lg shadow-sm border p-6 mb-6">
-  <h2 class="font-semibold text-gray-700 mb-2">企业微信使用方式</h2>
-  <p class="text-sm text-gray-600">在企业微信中发送 <code class="bg-gray-100 px-1.5 py-0.5 rounded">#{{ persona.slug }}</code> 切换到此人格，然后直接发消息对话。</p>
+<h2>System Prompt</h2>
+<pre>{{ persona.system_prompt }}</pre>
+
+<h2>各维度（点击重生成）</h2>
+{% if not meta.dimensions %}
+<div class="warn">老版本人格无维度数据。手动编辑或删除后重建可获得 v2 完整维度。</div>
+{% endif %}
+{% for name, data in (meta.dimensions or {}).items() %}
+<div class="dim-card">
+  <div class="head">
+    <strong>{{ name }}</strong>
+    <button onclick="regen('{{ persona.slug }}', '{{ name }}', this)">重新生成</button>
+  </div>
+  <pre style="max-height: 180px;">{{ data | tojson(indent=2) }}</pre>
 </div>
+{% endfor %}
 
-<form method="post" action="/admin/detail/{{ persona.slug }}/edit" class="space-y-6">
-  <div class="bg-white rounded-lg shadow-sm border p-6">
-    <h2 class="font-semibold text-gray-700 mb-3">关系记忆（Memory）</h2>
-    <textarea name="memory" rows="15"
-      class="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ persona.memory }}</textarea>
-  </div>
+<h2>原始 Memory</h2>
+<pre>{{ persona.memory }}</pre>
 
-  <div class="bg-white rounded-lg shadow-sm border p-6">
-    <h2 class="font-semibold text-gray-700 mb-3">人物性格（Persona）</h2>
-    <textarea name="persona_text" rows="15"
-      class="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ persona.persona }}</textarea>
-  </div>
+<h2>原始 Persona</h2>
+<pre>{{ persona.persona }}</pre>
 
-  <div class="bg-white rounded-lg shadow-sm border p-6">
-    <h2 class="font-semibold text-gray-700 mb-3">最终 System Prompt（只读预览）</h2>
-    <pre class="bg-gray-50 border rounded-lg p-4 text-xs font-mono text-gray-600 overflow-x-auto max-h-96 overflow-y-auto">{{ persona.system_prompt }}</pre>
-  </div>
-
-  <div class="flex justify-end">
-    <button type="submit"
-      class="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700">
-      保存并重新生成 Prompt
-    </button>
-  </div>
+<form method="post" action="/admin/detail/{{ persona.slug }}/delete"
+      onsubmit="return confirm('确定删除？')">
+  <button class="danger" type="submit">删除人格</button>
 </form>
-{% endblock %}
+
+<script>
+async function regen(slug, dim, btn) {
+  btn.disabled = true; btn.textContent = '生成中...';
+  try {
+    const resp = await fetch(`/admin/detail/${slug}/regen/${dim}`, { method: 'POST' });
+    const json = await resp.json();
+    if (json.ok) {
+      btn.textContent = '已更新';
+      setTimeout(() => location.reload(), 600);
+    } else {
+      btn.textContent = '失败';
+      alert(json.error || '生成失败');
+      btn.disabled = false;
+    }
+  } catch (e) {
+    btn.textContent = '失败';
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

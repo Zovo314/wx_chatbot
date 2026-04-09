@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>选择人物类型 - wx_chatbot</title>
+<style>
+  body { font-family: -apple-system, "PingFang SC", sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #222; }
+  h1 { font-size: 22px; }
+  .sub { color: #666; margin-bottom: 30px; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .card { display: block; padding: 20px; border: 1px solid #ddd; border-radius: 10px; text-decoration: none; color: inherit; transition: all .15s; }
+  .card:hover { border-color: #2c7be5; box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+  .card h2 { font-size: 17px; margin: 0 0 8px; }
+  .card p { font-size: 13px; color: #666; line-height: 1.6; margin: 0; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #f0f4ff; color: #2c7be5; margin-bottom: 8px; }
+  .back { display: inline-block; margin-top: 24px; color: #888; text-decoration: none; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>选择要创建的人物类型</h1>
+<p class="sub">不同类型走不同的生成 Pipeline。创建后类型不可更改。</p>
+
+<div class="cards">
+  <a class="card" href="/admin/create/private">
+    <span class="tag">PRIVATE</span>
+    <h2>私人关系</h2>
+    <p>现实中认识的人：前任 / 朋友 / 家人 / 同事 / 暑昧对象。<br>支持上传聊天记录，包含情感模式和共同记忆。</p>
+  </a>
+
+  <a class="card" href="/admin/create/public">
+    <span class="tag">PUBLIC</span>
+    <h2>公众人物</h2>
+    <p>真实存在但与你无私人交集：乔布斯 / 马斯克 / 张雪峰 / 偶像。<br>提取思维框架与表达 DNA，不包含与你的关系。</p>
+  </a>
+
+  <a class="card" href="/admin/create/fictional">
+    <span class="tag">FICTIONAL</span>
+    <h2>虚构角色</h2>
+    <p>小说 / 动漫 / 游戏 / 影视角色，或你的原创 OC。<br>提取角色思维与表达 DNA，明确不会假装认识你。</p>
+  </a>
+</div>
+
+<a class="back" href="/admin/">← 返回列表</a>
+</body>
+</html>
