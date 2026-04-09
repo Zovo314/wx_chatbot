@@ -1,3 +1,5 @@
+"""数据模型。v2 新增 persona_type 字段。"""
+
 from datetime import datetime, timezone
 from sqlalchemy import Integer, Text, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -9,12 +11,18 @@ def now_utc():
     return datetime.now(timezone.utc)
 
 
+# 允许的 persona 类型
+PERSONA_TYPES = ("private", "public", "fictional")
+
+
 class Persona(Base):
     __tablename__ = "personas"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     slug: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(200))
+    # v2 新增：人物类型，创建后只读
+    persona_type: Mapped[str] = mapped_column(String(20), default="private", index=True)
     memory: Mapped[str] = mapped_column(Text, default="")
     persona: Mapped[str] = mapped_column(Text, default="")
     system_prompt: Mapped[str] = mapped_column(Text, default="")
