@@ -24,7 +24,7 @@ async def list_active_kf_users(db: AsyncSession, persona_id: int) -> list[str]:
             Conversation.persona_id == persona_id,
             Conversation.role == "user",
             Conversation.created_at >= cutoff,
-            Conversation.wx_user_id.like("kf_%"),
+            Conversation.wx_user_id.startswith("kf_", autoescape=True),
         )
         .distinct()
     )

@@ -35,6 +35,10 @@ async def test_list_active_kf_users_filters_48h_and_kf_prefix(db):
     db.add(Conversation(persona_id=p.id, role="assistant",
                         content="reply", wx_user_id="kf_ext_C",
                         created_at=now - timedelta(hours=1)))
+    # SQL LIKE 下划线回归：'kfX_xxx' 不应匹配 —— 必须严格以 "kf_" 开头
+    db.add(Conversation(persona_id=p.id, role="user",
+                        content="fake", wx_user_id="kfXbad",
+                        created_at=now - timedelta(hours=1)))
     await db.commit()
 
     ids = await list_active_kf_users(db, p.id)
