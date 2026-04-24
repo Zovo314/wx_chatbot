@@ -65,6 +65,100 @@
 <h2>原始 Persona</h2>
 <pre>{{ persona.persona }}</pre>
 
+<h2>主动发送设置</h2>
+<form method="post" action="/admin/detail/{{ persona.slug }}/schedule" id="schedule-form" style="border:1px solid #eee;border-radius:6px;padding:14px;">
+  <label style="display:flex;align-items:center;gap:8px;">
+    <input type="checkbox" name="enabled" value="1" {% if schedule and schedule.enabled %}checked{% endif %}>
+    <span>启用主动发送</span>
+  </label>
+
+  <label style="display:block;margin-top:10px;font-size:13px;color:#555;">
+    AI 提示词（每次到点，系统会用此提示词调一次 AI，按人设生成一条消息广播给 48 小时内活跃的外部客户）
+    <textarea name="prompt" rows="2" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:14px;box-sizing:border-box;font-family:inherit;" placeholder="例：提醒用户喝水">{% if schedule %}{{ schedule.prompt }}{% endif %}</textarea>
+  </label>
+
+  <div style="margin-top:10px;">
+    <label style="margin-right:16px;"><input type="radio" name="mode" value="interval" {% if not schedule or schedule.mode == 'interval' %}checked{% endif %}> 间隔模式</label>
+    <label><input type="radio" name="mode" value="specific" {% if schedule and schedule.mode == 'specific' %}checked{% endif %}> 指定时刻</label>
+  </div>
+
+  <div id="mode-interval" style="margin-top:8px;">
+    <label style="display:inline-block;margin-right:10px;">开始
+      <input type="time" name="start_time" value="{% if schedule %}{{ schedule.start_time }}{% else %}08:00{% endif %}">
+    </label>
+    <label style="display:inline-block;margin-right:10px;">结束
+      <input type="time" name="end_time" value="{% if schedule %}{{ schedule.end_time }}{% else %}21:00{% endif %}">
+    </label>
+    <label style="display:inline-block;">间隔（分钟）
+      <input type="number" name="interval_minutes" min="1" style="width:80px;" value="{% if schedule %}{{ schedule.interval_minutes }}{% else %}60{% endif %}">
+    </label>
+  </div>
+
+  <div id="mode-specific" style="margin-top:8px;display:none;">
+    <label style="display:block;">时刻列表（JSON 数组，例：["07:30","12:00","22:30"]）
+      <input type="text" name="specific_times" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;" value='{% if schedule %}{{ schedule.specific_times }}{% else %}[]{% endif %}'>
+    </label>
+  </div>
+
+  <div style="margin-top:10px;">
+    <div style="font-size:13px;color:#555;margin-bottom:4px;">重复日</div>
+    <div id="weekdays-box">
+      {% set wd_set = (schedule.weekdays if schedule else '0,1,2,3,4,5,6').split(',') %}
+      {% for pair in [('0','一'),('1','二'),('2','三'),('3','四'),('4','五'),('5','六'),('6','日')] %}
+      <label style="display:inline-block;margin-right:10px;">
+        <input type="checkbox" class="wd" value="{{ pair[0] }}" {% if pair[0] in wd_set %}checked{% endif %}>
+        周{{ pair[1] }}
+      </label>
+      {% endfor %}
+      <input type="hidden" name="weekdays" id="weekdays-value">
+    </div>
+  </div>
+
+  <label style="display:block;margin-top:10px;">时区
+    <input type="text" name="timezone" value="{% if schedule %}{{ schedule.timezone }}{% else %}Asia/Shanghai{% endif %}" style="width:200px;">
+  </label>
+
+  <div class="row">
+    <button type="submit">保存设置</button>
+    <button type="button" onclick="testSchedule('{{ persona.slug }}')">试发一条</button>
+  </div>
+
+  <div class="small" style="margin-top:8px;">
+    提示：客户 48 小时内未回复任何消息时，主动消息会被微信拒发（自动静默跳过）。客户只需回复任意一条即可续上窗口。
+  </div>
+</form>
+
+<script>
+function collectWeekdays() {
+  const vals = [...document.querySelectorAll('#weekdays-box .wd:checked')].map(c => c.value);
+  document.getElementById('weekdays-value').value = vals.join(',');
+}
+document.getElementById('schedule-form').addEventListener('submit', collectWeekdays);
+
+function updateModeVisibility() {
+  const sel = document.querySelector('input[name="mode"]:checked');
+  const v = sel ? sel.value : 'interval';
+  document.getElementById('mode-interval').style.display = v === 'interval' ? '' : 'none';
+  document.getElementById('mode-specific').style.display = v === 'specific' ? '' : 'none';
+}
+document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', updateModeVisibility));
+updateModeVisibility();
+
+async function testSchedule(slug) {
+  collectWeekdays();
+  const fd = new FormData(document.getElementById('schedule-form'));
+  // 先保存一次最新配置，避免用旧数据试发
+  await fetch(`/admin/detail/${slug}/schedule`, { method: 'POST', body: fd });
+  const resp = await fetch(`/admin/detail/${slug}/schedule/test`, { method: 'POST' });
+  const data = await resp.json().catch(() => ({ok:false, error:'响应非 JSON'}));
+  if (data.ok) {
+    alert(`AI 生成内容：\n\n${data.message}\n\n已发送给 ${data.sent} 位 48h 内活跃客户。`);
+  } else {
+    alert('试发失败：' + (data.error || '未知错误'));
+  }
+}
+</script>
+
 <form method="post" action="/admin/detail/{{ persona.slug }}/delete"
       onsubmit="return confirm('确定删除？')">
   <button class="danger" type="submit">删除人格</button>
