@@ -9,6 +9,7 @@ from app.models import Persona, Conversation
 
 from app.services.ai_client import chat_completion
 from app.services.chat import get_ai_config, _sanitize_reply
+from app.services.kf import send_kf_message
 
 
 KF_WINDOW_HOURS = 47  # 客服 API 要求 48h 内有用户消息；留 1h 安全边际
@@ -54,3 +55,34 @@ async def generate_message(db: AsyncSession, persona: Persona, user_prompt: str)
     ]
     reply = await chat_completion(config, messages)
     return _sanitize_reply(reply, persona.name)
+
+
+async def broadcast(db: AsyncSession, persona: Persona, message: str) -> int:
+    """把一条消息广播给该人格绑定的客服下 48h 活跃的所有外部客户。
+    返回成功发送的条数。无绑定、无活跃用户或空消息时返回 0，不抛异常。
+    """
+    if not message or not message.strip():
+        return 0
+    try:
+        meta = json.loads(persona.meta_json) if persona.meta_json else {}
+    except Exception:
+        meta = {}
+    open_kfid = (meta.get("kf") or {}).get("open_kfid")
+    if not open_kfid:
+        print(f"[主动] {persona.slug} 未绑定客服，跳过")
+        return 0
+
+    user_ids = await list_active_kf_users(db, persona.id)
+    if not user_ids:
+        print(f"[主动] {persona.slug} 无 48h 活跃客户，跳过")
+        return 0
+
+    sent = 0
+    for uid in user_ids:
+        try:
+            await send_kf_message(open_kfid, uid, message)
+            sent += 1
+        except Exception as e:
+            print(f"[主动] 发送失败 persona={persona.slug} uid={uid}: {e}")
+    print(f"[主动] {persona.slug} 广播完成: {sent}/{len(user_ids)}")
+    return sent

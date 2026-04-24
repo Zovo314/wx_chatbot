@@ -74,3 +74,79 @@ async def test_generate_message_builds_correct_prompt_and_sanitizes(db, monkeypa
     # 验证 sanitize：去括号旁白 + 去名字前缀
     assert "（" not in reply and "喝水助手：" not in reply
     assert "该喝水啦" in reply
+
+
+async def test_broadcast_sends_to_all_active_users(db, monkeypatch):
+    from app.services import proactive as mod
+    from app.models import Persona, Conversation
+    from datetime import datetime, timezone, timedelta
+
+    p = Persona(
+        slug="w", name="W", system_prompt="sys",
+        meta_json='{"kf":{"open_kfid":"kf123","link":"x"}}',
+    )
+    db.add(p)
+    await db.flush()
+    now = datetime.now(timezone.utc)
+    for ext in ("a", "b", "c"):
+        db.add(Conversation(persona_id=p.id, role="user", content="hi",
+                            wx_user_id=f"kf_{ext}",
+                            created_at=now - timedelta(hours=2)))
+    await db.commit()
+
+    sent = []
+
+    async def fake_send(open_kfid, external_userid, content):
+        sent.append((open_kfid, external_userid, content))
+
+    monkeypatch.setattr(mod, "send_kf_message", fake_send)
+
+    n = await mod.broadcast(db, p, "hello")
+    assert n == 3
+    assert {s[1] for s in sent} == {"a", "b", "c"}
+    assert all(s[0] == "kf123" for s in sent)
+    assert all(s[2] == "hello" for s in sent)
+
+
+async def test_broadcast_skips_when_no_kf_binding(db, monkeypatch):
+    from app.services import proactive as mod
+    from app.models import Persona
+
+    p = Persona(slug="w", name="W", system_prompt="sys", meta_json="{}")
+    db.add(p)
+    await db.commit()
+
+    calls = []
+
+    async def fake_send(*a, **kw):
+        calls.append(a)
+
+    monkeypatch.setattr(mod, "send_kf_message", fake_send)
+    n = await mod.broadcast(db, p, "hello")
+    assert n == 0
+    assert calls == []
+
+
+async def test_broadcast_continues_on_per_user_error(db, monkeypatch):
+    from app.services import proactive as mod
+    from app.models import Persona, Conversation
+    from datetime import datetime, timezone, timedelta
+
+    p = Persona(slug="w", name="W", system_prompt="sys",
+                meta_json='{"kf":{"open_kfid":"kf1"}}')
+    db.add(p)
+    await db.flush()
+    now = datetime.now(timezone.utc)
+    for ext in ("a", "b", "c"):
+        db.add(Conversation(persona_id=p.id, role="user", content="hi",
+                            wx_user_id=f"kf_{ext}",
+                            created_at=now - timedelta(hours=2)))
+    await db.commit()
+
+    async def flaky(open_kfid, external_userid, content):
+        if external_userid == "b":
+            raise RuntimeError("network down")
+
+    monkeypatch.setattr(mod, "send_kf_message", flaky)
+    n = await mod.broadcast(db, p, "hello")
+    assert n == 2  # a 和 c 成功，b 失败
