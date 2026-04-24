@@ -7,8 +7,13 @@
 """
 import json
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
+from sqlalchemy import select
+
+from app.database import async_session
 from app.models import PersonaSchedule
+from app.services.proactive import broadcast, generate_message
 
 
 def compute_fire_times(s: PersonaSchedule) -> set[str]:
@@ -47,3 +52,30 @@ def should_fire(s: PersonaSchedule, now: datetime) -> bool:
         return False
     hm = now.strftime("%H:%M")
     return hm in compute_fire_times(s)
+
+
+async def _tick(session_factory=None):
+    """每分钟执行：扫 enabled schedule，命中则 generate → broadcast。"""
+    factory = session_factory or async_session
+    try:
+        async with factory() as db:
+            rows = await db.execute(select(PersonaSchedule).where(PersonaSchedule.enabled == 1))
+            schedules = rows.scalars().all()
+            for s in schedules:
+                try:
+                    tz = ZoneInfo(s.timezone or "Asia/Shanghai")
+                    now_local = datetime.now(tz)
+                    if not should_fire(s, now_local):
+                        continue
+                    from app.models import Persona
+                    persona = await db.get(Persona, s.persona_id)
+                    if not persona:
+                        continue
+                    msg = await generate_message(db, persona, s.prompt)
+                    if not msg:
+                        continue
+                    await broadcast(db, persona, msg)
+                except Exception as e:
+                    print(f"[调度] schedule_id={s.id} 执行异常（忽略）: {e}")
+    except Exception as e:
+        print(f"[调度] tick 顶层异常（忽略）: {e}")
