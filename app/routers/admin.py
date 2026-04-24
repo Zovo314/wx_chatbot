@@ -462,3 +462,45 @@ async def kf_bind(
     await db.commit()
     bind_kf_persona(open_kfid, slug)
     return RedirectResponse(url="/admin/kf", status_code=303)
+
+
+# -------- 主动发送设置 --------
+@router.post("/detail/{slug}/schedule")
+async def save_schedule(
+    slug: str,
+    enabled: str = Form("0"),
+    prompt: str = Form(""),
+    mode: str = Form("interval"),
+    start_time: str = Form("08:00"),
+    end_time: str = Form("21:00"),
+    interval_minutes: int = Form(60),
+    specific_times: str = Form("[]"),
+    weekdays: str = Form("0,1,2,3,4,5,6"),
+    timezone: str = Form("Asia/Shanghai"),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models import PersonaSchedule
+    result = await db.execute(select(Persona).where(Persona.slug == slug))
+    p = result.scalar_one_or_none()
+    if not p:
+        raise HTTPException(404, "persona not found")
+
+    result = await db.execute(
+        select(PersonaSchedule).where(PersonaSchedule.persona_id == p.id)
+    )
+    s = result.scalar_one_or_none()
+    if s is None:
+        s = PersonaSchedule(persona_id=p.id)
+        db.add(s)
+
+    s.enabled = 1 if str(enabled).lower() in ("1", "true", "on", "yes") else 0
+    s.prompt = (prompt or "").strip()
+    s.mode = mode if mode in ("interval", "specific") else "interval"
+    s.start_time = start_time or "08:00"
+    s.end_time = end_time or "21:00"
+    s.interval_minutes = max(1, int(interval_minutes or 60))
+    s.specific_times = specific_times or "[]"
+    s.weekdays = weekdays or "0,1,2,3,4,5,6"
+    s.timezone = timezone or "Asia/Shanghai"
+    await db.commit()
+    return RedirectResponse(url=f"/admin/detail/{slug}", status_code=303)
