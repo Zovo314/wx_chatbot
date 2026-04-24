@@ -282,9 +282,16 @@ async def detail_page(
     if not persona:
         return RedirectResponse(url="/admin/")
     meta = json.loads(persona.meta_json) if persona.meta_json else {}
+
+    from app.models import PersonaSchedule
+    result = await db.execute(
+        select(PersonaSchedule).where(PersonaSchedule.persona_id == persona.id)
+    )
+    schedule = result.scalar_one_or_none()
+
     return templates.TemplateResponse(
         request, name="detail.html",
-        context={"persona": persona, "meta": meta},
+        context={"persona": persona, "meta": meta, "schedule": schedule},
     )
 
 
