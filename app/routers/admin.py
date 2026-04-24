@@ -504,3 +504,31 @@ async def save_schedule(
     s.timezone = timezone or "Asia/Shanghai"
     await db.commit()
     return RedirectResponse(url=f"/admin/detail/{slug}", status_code=303)
+
+
+@router.post("/detail/{slug}/schedule/test")
+async def test_schedule(slug: str, db: AsyncSession = Depends(get_db)):
+    """手动试发一条主动消息。用于 UI 调试。"""
+    from app.models import PersonaSchedule
+    from app.services.proactive import generate_message, broadcast
+    result = await db.execute(select(Persona).where(Persona.slug == slug))
+    p = result.scalar_one_or_none()
+    if not p:
+        raise HTTPException(404, "persona not found")
+
+    result = await db.execute(
+        select(PersonaSchedule).where(PersonaSchedule.persona_id == p.id)
+    )
+    s = result.scalar_one_or_none()
+    if s is None or not s.prompt.strip():
+        return JSONResponse(
+            {"ok": False, "error": "未配置主动发送或提示词为空"}, status_code=400
+        )
+
+    try:
+        message = await generate_message(db, p, s.prompt)
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": f"AI 生成失败: {e}"}, status_code=500)
+
+    sent = await broadcast(db, p, message)
+    return JSONResponse({"ok": True, "message": message, "sent": sent})

@@ -94,3 +94,59 @@ async def test_save_schedule_404_for_missing_persona(engine):
             assert r.status_code == 404
     finally:
         app.dependency_overrides.clear()
+
+
+async def test_schedule_test_endpoint(engine, monkeypatch):
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+    async with Session() as db:
+        p = Persona(slug="w", name="W", system_prompt="sys",
+                    meta_json='{"kf":{"open_kfid":"kf1"}}')
+        db.add(p)
+        await db.flush()
+        db.add(PersonaSchedule(persona_id=p.id, enabled=1, prompt="喝水吧"))
+        await db.commit()
+
+    from app.services import proactive
+    async def fake_gen(db_, persona, prompt):
+        return f"[AI] {prompt}"
+    async def fake_bc(db_, persona, message):
+        return 7
+    monkeypatch.setattr(proactive, "generate_message", fake_gen)
+    monkeypatch.setattr(proactive, "broadcast", fake_bc)
+
+    async def _override_get_db():
+        async with Session() as session:
+            yield session
+    app.dependency_overrides[get_db] = _override_get_db
+    try:
+        with TestClient(app) as client:
+            r = client.post("/admin/detail/w/schedule/test")
+            assert r.status_code == 200
+            data = r.json()
+            assert data["ok"] is True
+            assert data["message"] == "[AI] 喝水吧"
+            assert data["sent"] == 7
+    finally:
+        app.dependency_overrides.clear()
+
+
+async def test_schedule_test_without_prompt_returns_400(engine):
+    Session = async_sessionmaker(engine, expire_on_commit=False)
+    async with Session() as db:
+        p = Persona(slug="w", name="W", system_prompt="sys")
+        db.add(p)
+        await db.flush()
+        db.add(PersonaSchedule(persona_id=p.id, enabled=1, prompt="   "))
+        await db.commit()
+
+    async def _override_get_db():
+        async with Session() as session:
+            yield session
+    app.dependency_overrides[get_db] = _override_get_db
+    try:
+        with TestClient(app) as client:
+            r = client.post("/admin/detail/w/schedule/test")
+            assert r.status_code == 400
+            assert r.json()["ok"] is False
+    finally:
+        app.dependency_overrides.clear()
