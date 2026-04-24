@@ -9,6 +9,8 @@ import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
 
 from app.database import async_session
@@ -79,3 +81,37 @@ async def _tick(session_factory=None):
                     print(f"[调度] schedule_id={s.id} 执行异常（忽略）: {e}")
     except Exception as e:
         print(f"[调度] tick 顶层异常（忽略）: {e}")
+
+
+_scheduler: AsyncIOScheduler | None = None
+
+
+def start_scheduler() -> AsyncIOScheduler | None:
+    """启动每分钟 tick 的调度器；若已启动则返回现有实例。"""
+    global _scheduler
+    if _scheduler is not None:
+        return _scheduler
+    sched = AsyncIOScheduler(timezone="UTC")
+    sched.add_job(
+        _tick,
+        CronTrigger(minute="*", timezone="UTC"),
+        id="proactive_tick",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    sched.start()
+    _scheduler = sched
+    print("[调度] 主动发送调度器已启动（每分钟 tick）")
+    return _scheduler
+
+
+def stop_scheduler() -> None:
+    global _scheduler
+    if _scheduler is not None:
+        try:
+            _scheduler.shutdown(wait=False)
+        except Exception:
+            pass
+        _scheduler = None
+        print("[调度] 主动发送调度器已停止")

@@ -18,7 +18,18 @@ async def lifespan(app: FastAPI):
         await _drain_kf_history()
     except Exception as e:
         print(f"[启动] 客服模块初始化失败（忽略，主服务继续）: {e}")
+    # 主动发送调度器失败也不应阻塞主服务启动
+    try:
+        from app.services.scheduler import start_scheduler
+        start_scheduler()
+    except Exception as e:
+        print(f"[启动] 主动发送调度器启动失败（忽略，主服务继续）: {e}")
     yield
+    try:
+        from app.services.scheduler import stop_scheduler
+        stop_scheduler()
+    except Exception:
+        pass
 
 
 async def _restore_kf_bindings():
