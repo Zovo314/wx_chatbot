@@ -13,7 +13,7 @@ class Base(DeclarativeBase):
 
 
 async def init_db():
-    from app.models import Persona, Conversation, AIConfig  # noqa: F401
+    from app.models import Persona, Conversation, AIConfig, PersonaSchedule  # noqa: F401
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         # ---- 自动迁移：v2 新增 persona_type 列 ----
